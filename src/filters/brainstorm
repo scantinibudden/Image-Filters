@@ -1,0 +1,120 @@
+ | B1  G1  R1  A1 | B2  G2  R2  A2 | B3  G3  R3  A3 | B4  G4  R4  A4 |  -> original xmm0
+ |  F   0   0   0 |  F   0   0   0 |  F   0   0   0 |  F   0   0   0 |  -> mascara azul
+ | B1   0   0   0 | B2   0   0   0 | B3   0   0   0 |  B4  0   0   0 |  -> post mascara quedan solo los azules xmm1
+
+ | B1  G1  R1  A1 | B2  G2  R2  A2 | B3  G3  R3  A3 | B4  G4  R4  A4 |  -> original xmm0
+ |  0   F   0   0 |  0   F   0   0 |  0   F   0   0 |  0   F   0   0 |  -> mascara verde
+ |  0  G1   0   0 |  0  G2   0   0 |  0  G3   0   0 |  0  G4   0   0 |  -> post mascara quedan solo los verdes xmm2
+
+ | B1  G1  R1  A1 | B2  G2  R2  A2 | B3  G3  R3  A3 | B4  G4  R4  A4 |  -> original xmm0
+ |  0   0   F   0 |  0   0   F   0 |  0   0   F   0 |  0   0   F   0 |  -> mascara roja
+ |  0   0  R1   0 |  0   0  R2   0 |  0   0  R3   0 |  0   0  R4   0 |  -> post mascara quedan solo los roja xmm3
+
+
+ |  0   0   0   B1|  0   0   0   B2|  0   0   0   B3|   0  0   0  B4 |  -> shift xmm1, 3
+ |  0   0   0   G1|  0   0   0   G2|  0   0   0   G3|   0  0   0  G4 |  -> shift xmm2, 2
+ |  0   0   0   A1|  0   0   0   A2|  0   0   0   A3|   0  0   0  A4 |  -> shift xmm3, 1
+
+xmm1 + xmm2 = xmm2
+xmm2 + xmm3 = xmm3 -> las sumas estan en xmm3
+
+    movdqu xmm0, [rsi]              ; levantamos 4 pixeles de la primera fila
+    movdqu xmm1, [maskB]            ; mascara para el color azul
+    pand xmm1, xmm0                 ; filtramos el color azul
+    psrld xmm1, 3                   ; azul shifteado
+    pxor xmm2, xmm2                 ; limpiamos xmm2 
+    paddd xmm2, xmm1                ; xmm2 los azules
+    psrld xmm1, [maskG]             ; mascara para el color verde
+    pand xmm1, xmm0                 ; filtramos el color verde
+    psrld xmm1, 2                   ; verde shifteado
+    paddd xmm2, xmm1                ; acumulamos en xmm2 azul + verde
+    psrld xmm1, [maskR]             ; mascara roja
+    pand xmm1, xmm0                 ; filtramos rojo
+    psrld xmm1, 1                   ; shift rojo
+    paddd xmm2, xmm1                ; acumulamos en xmm2 azul + verde + rojo
+
+
+section .rodata
+maskB: db 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00
+maskG: db 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00
+maskR: db 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00
+
+|   Acumulado P1|  Acumulado P2|  Acumulado P3| Acumulado P4| 
+
+|   Acumulado P1|  Acumulado P1|  Acumulado P1| Acumulado P1| 
+
+| FFFFFFFFFFF   | 000000000000 | FFFFFFFFFFFFF | 0000000000 |
+
+rbx -> double -> maxAcumulado -> numero entero 32bits
+
+CMP rbx, ammAcumulados
+
+
+
+-------------------------------------------------------------------------------
+
+| Acumulado P1|  Acumulado P2|  Acumulado P3| Acumulado P4| ----> xmm2
+                                                            
+                                            | Acumulado P1| ----> r10 
+| Acumulado P1|  Acumulado P1|  Acumulado P1| Acumulado P1| ----> acumulado1
+
+m1 1000  
+m2 0100
+m3 0010
+m4 0001
+
+cmp acumulado1, xmmm2 = resultado  1100
+resultado == m1 ???
+si, entonces m1 es la mascara para el pixel y el max     
+no, entonces no es el maximo 
+esto se hace para todos
+
+p1 - p1 = mas grandes
+1100
+1100
+1110
+1111
+
+
+1100, m1 = 1000
+
+
+or entre las 4
+
+
+1010
+
+cmp 0011, m1 = 0000
+
+0011, m2 = 0000
+
+011, m3 = 0010
+
+1110 m1 = 1000
+
+
+cmp 0110, 1000(m1) = 0000
+comparacion = m1 ?
+si, entonces m1
+no, comparo con m2
+
+cmp 0110, 0100 = 0100
+comparacion = m2 ?
+si, entonces m2
+no, coparo con m3
+
+xmm2 -> xmm4 
+
+| 00000000000 | FFFFFFFFFFF  |0000000000000 | FFFFFFFFFFFF| ----> 
+
+
+| 00000000000 | Acumulado p2 | acumulado p3 | acumulado p4 |
+
+| 00000000000 | FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF|
+
+
+rbx -> double -> maxAcumulado -> numero entero 32bits
+
+CMP rbx, ammAcumulados
+
+mask = times 4 dw 1000
